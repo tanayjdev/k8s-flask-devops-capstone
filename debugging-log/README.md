@@ -213,3 +213,51 @@ allowed, the rollout has no valid replacement path.
 **Lesson:** Deployment combines selection, ownership, and
 reconciliation. ReplicaSets provide Pod-count enforcement, while
 Deployment adds controlled rollout, revision history, and rollback.
+
+## 8 Sept 2026 — Rollout stuck, Scenario A: bad image reference
+
+**Symptom:** `kubectl rollout status` did not complete after a Deployment image update.
+
+**Observation:** New Pods entered `ImagePullBackOff` / `ErrImagePull`.
+
+**Hypothesis:** The new image reference could not be pulled.
+
+**Evidence:** `kubectl describe pod` Events showed an image-pull failure such as `Failed to pull image` / manifest-not-found style registry errors.
+
+**Diagnosis:** The container process never started because the requested image could not be obtained.
+
+**Root Cause:** Deliberately invalid image tag: `nginx:this-tag-does-not-exist-12345`.
+
+**Immediate Fix:** Rolled back the Deployment to the known-good revision to restore service stability.
+
+**Important distinction:** Rollback restored the known-good service state but did NOT fix the underlying defect; the invalid image reference remained the root-cause defect to be addressed separately.
+
+**Verification:** Deployment rollout completed and Pods returned to the known-good image.
+
+**Lesson:** A stuck Deployment rollout is a symptom. `kubectl get pods` can immediately identify an image-layer failure through `ImagePullBackOff` / `ErrImagePull`.
+
+## 8 Sept 2026 — Rollout stuck, Scenario B: readiness-gate failure
+
+**Symptom:** `kubectl rollout status` again failed to complete, producing the same top-level "stuck rollout" symptom as Scenario A.
+
+**Observation:** New Pods were `Running`, but remained `0/1 Ready`. This was different from Scenario A because the image pull and container startup had succeeded.
+
+**Hypothesis:** The failure was at the readiness layer.
+
+**Evidence:** `kubectl describe pod` Events showed the readiness HTTP probe failing with HTTP status code `404`.
+
+**Diagnosis:** nginx was running, but the readiness probe requested a nonexistent path. The HTTP probe therefore failed and the Pod did not become Ready.
+
+**Root Cause:** `readinessProbe.httpGet.path` was intentionally set to `/this-path-does-not-exist`.
+
+**Immediate Fix:** Rolled back the Deployment first to restore stability.
+
+**Fix Forward:** Separately corrected the probe path to `/` and reapplied the Deployment.
+
+**Verification:** New Pods became `Running` and `1/1 Ready`; the Deployment rollout completed successfully.
+
+**Rebuild Verification:** Deleted the entire Deployment and recreated it from the corrected manifest. The final configuration successfully produced three `Running`, `1/1 Ready` Pods.
+
+**Scope note:** Readiness probes were used only as a minimal prerequisite for this failure diagnosis. Deep probe design, semantics, tuning, startup/liveness interactions, and advanced troubleshooting remain deferred to the dedicated Sept 11 probe day.
+
+**Lesson:** Identical top-level symptoms can have different root causes. Pod STATUS/READY state provides the first diagnostic layer, and `kubectl describe pod` Events provide evidence.
