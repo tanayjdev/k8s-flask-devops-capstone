@@ -161,3 +161,55 @@ return to a deterministic two-Pod state.
 **Lesson:** Selection and ownership are separate pieces of Kubernetes
 state. Label changes can alter controller membership and cause
 reconciliation even when no Pod deletion occurred.
+
+## 7 Sept 2026 — Deployment rollout, revision history, rollback, and maxSurge/maxUnavailable validation
+
+**Scope:** Deployment deepening — Deployment → ReplicaSet → Pod,
+controlled rollout, revisions, rollback, and strategy validation.
+
+**Ownership model:** Deployment records ownership of its ReplicaSets
+through `ownerReferences`, while ReplicaSets record ownership of
+their Pods. Ownership is distinct from selection and reconciliation;
+the controller combines these concepts to manage desired state.
+
+**Proof 1 — Ownership chain:** Created `deploy-demo` and inspected
+Deployment → ReplicaSet and ReplicaSet → Pod `ownerReferences`.
+
+**Proof 2 — pod-template-hash:** Inspected Deployment-managed Pods and
+ReplicaSets and observed the automatically generated
+`pod-template-hash` label.
+
+**Proof 3 — Rollout:** Changed the Deployment image from
+`nginx:1.25` to `nginx:1.26`. Observed the Deployment reconcile its
+ReplicaSets so the target revision scaled up while the previous
+revision scaled down.
+
+**Important mechanism note:** Do not generalize this as
+"every template change always creates a brand-new ReplicaSet object."
+The Deployment reconciles toward the required Pod-template state,
+and an existing matching ReplicaSet can be reused in revision/
+rollback scenarios.
+
+**Proof 4 — Revision history:** `kubectl rollout history` showed
+multiple revisions after the Pod-template change.
+
+**Proof 5 — Rollback:** `kubectl rollout undo` returned the Deployment
+to the earlier `nginx:1.25` template state. The rollback was performed
+through Deployment revision reconciliation rather than manual
+ReplicaSet scaling.
+
+**Validation failure:** Applied a RollingUpdate strategy with
+`maxSurge: 0` and `maxUnavailable: 0`.
+
+**Observation:** The API rejected the invalid configuration.
+
+**Hypothesis:** With neither surge capacity nor unavailable capacity
+allowed, the rollout has no valid replacement path.
+
+**Root Cause:** Invalid zero/zero RollingUpdate configuration.
+
+**Fix:** Changed to `maxSurge: 1`, `maxUnavailable: 0`.
+
+**Lesson:** Deployment combines selection, ownership, and
+reconciliation. ReplicaSets provide Pod-count enforcement, while
+Deployment adds controlled rollout, revision history, and rollback.
