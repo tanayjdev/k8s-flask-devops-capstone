@@ -78,3 +78,35 @@ from the corrected manifest; behavior remained reproducible.
 **Lesson:** Selectors are not just descriptive text. They define
 matching relationships, and Kubernetes validates important
 selector/template consistency before accepting the workload.
+
+## 4 Sept 2026 — Init container failure blocking main container start
+
+**Symptom:** Pod init-demo stuck at 0/1, status showed Init:
+prefix, never reached Running.
+
+**Observation:** kubectl describe pod showed BackOff events for
+the init container "setup".
+
+**Hypothesis:** Init container was failing, and initialization
+was not completing — main container cannot start until init
+containers complete successfully.
+
+**Evidence:** kubectl logs init-demo -c setup showed no output
+(command was `exit 1`); kubectl describe pod init-demo Events
+section confirmed repeated restart attempts on the init container.
+
+**Root Cause:** Init container command deliberately set to exit 1.
+
+**Fix:** Restored the correct command (write shared file).
+
+**Verification:** Pod reached 1/1 Running; main container logs
+confirmed it read the file the init container wrote.
+
+**Rebuild Verification:** Deleted and recreated the Pod from the
+corrected manifest; same successful behavior reproduced.
+
+**Lesson:** A failing init container blocks ALL main containers
+in the Pod — the ordering guarantee (init completes before main
+starts) is absolute, not best-effort. Retry behavior for init
+containers should not be assumed identical to ordinary
+app-container restart handling.
