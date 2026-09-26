@@ -110,3 +110,54 @@ in the Pod — the ordering guarantee (init completes before main
 starts) is absolute, not best-effort. Retry behavior for init
 containers should not be assumed identical to ordinary
 app-container restart handling.
+
+## 5 Sept 2026 — Standalone ReplicaSet, ownership/adoption, template behavior, and label-removal debugging
+
+**Scope:** Direct ReplicaSet reconciliation without a Deployment.
+
+**Baseline:** Created a standalone ReplicaSet with `replicas: 2`,
+selector `app=web`, and an nginx Pod template.
+
+**Proof 1 — Standalone reconciliation:** Scaled the ReplicaSet from
+2 to 4 directly with `kubectl scale`. ReplicaSet created the missing
+Pods without any Deployment involved.
+
+**Ownership/selection lesson:** The ReplicaSet selector identifies
+matching Pods, while `ownerReferences` records controller ownership.
+These are related but distinct concepts. A pre-existing matching Pod
+was eligible for adoption and the ReplicaSet established ownership
+through `ownerReferences` rather than creating a duplicate third Pod.
+
+**Proof 2 — Template behavior:** Changed the ReplicaSet template from
+`nginx:1.25` to `nginx:1.26`. Existing Pods remained on `nginx:1.25`.
+After scaling up, only the newly created Pod used `nginx:1.26`.
+
+**Symptom — Label mutation:** Removed `app=web` from one
+ReplicaSet-managed Pod.
+
+**Observation:** The target Pod continued running but no longer
+appeared under `kubectl get pods -l app=web`. The ReplicaSet observed
+fewer selected replicas and created a replacement Pod.
+
+**Hypothesis:** Removing a selector label changes selector membership.
+A running Pod can therefore leave the controller's selected workload
+without being deleted.
+
+**Evidence:** Compared filtered and unfiltered Pod lists, observed the
+new replacement Pod, and inspected the target Pod's labels and
+`ownerReferences`.
+
+**Diagnosis:** The target Pod no longer matched the ReplicaSet
+selector. During reconciliation the controller could release its
+ownership, while the ReplicaSet created a new matching Pod to restore
+the desired selected replica count.
+
+**Root Cause:** `kubectl label pod <name> app-` removed the label used
+by the ReplicaSet selector.
+
+**Fix:** Restored `app=web`, then rebuilt the experiment cleanly to
+return to a deterministic two-Pod state.
+
+**Lesson:** Selection and ownership are separate pieces of Kubernetes
+state. Label changes can alter controller membership and cause
+reconciliation even when no Pod deletion occurred.
