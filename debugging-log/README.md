@@ -49,3 +49,32 @@ toward the desired count.
 
 **Lesson:** Never diagnose “no Pods” without checking the
 declared desired state.
+
+## 3 Sept 2026 — ReplicaSet selector/template mismatch
+
+**Symptom:** ReplicaSet creation was rejected by the Kubernetes API.
+
+**Observation:** The ReplicaSet selector used `app=wbe`,
+while the Pod template used `app=web`.
+
+**Hypothesis:** The selector/template label relationship was invalid.
+
+**Evidence:** Compared:
+- `spec.selector.matchLabels.app = wbe`
+- `spec.template.metadata.labels.app = web`
+
+**Diagnosis:** The selector did not match the template label.
+
+**Root Cause:** Typo: `wbe` instead of `web`.
+
+**Fix:** Changed the selector value to `app=web`.
+
+**Verification:** ReplicaSet was created successfully and
+the expected Pods appeared with `app=web`.
+
+**Rebuild Verification:** Deleted the ReplicaSet and recreated it
+from the corrected manifest; behavior remained reproducible.
+
+**Lesson:** Selectors are not just descriptive text. They define
+matching relationships, and Kubernetes validates important
+selector/template consistency before accepting the workload.
