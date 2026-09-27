@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-app-config
+data:
+  APP_MODE: "demo"
+  GREETING: "UPDATED — you should NOT see this in the env var yet"
+  INDEX_HTML: "UPDATED nginx content from ConfigMap"

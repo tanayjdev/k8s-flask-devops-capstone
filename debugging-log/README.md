@@ -287,3 +287,21 @@ Deployment adds controlled rollout, revision history, and rollback.
 **Observation:** Two completely separate outcomes for what looks like "the same Service.”
 **Diagnosis:** DNS resolution succeeded, meaning the DNS system successfully returned an address for the Service name. That did not prove that ready backends existed, that targetPort was correct, or that the application was healthy.
 **Lesson:** Never stop diagnosing at "DNS resolves" — DNS is only one step in the Service access chain.
+
+## 10 Sept 2026 — ConfigMap key typo blocking Pod start
+**Symptom:** Pod stuck in `CreateContainerConfigError`.
+**Observation:** `kubectl describe pod` Events named the missing key.
+**Root Cause:** Typo `GREETINGG` vs actual key `GREETING`.
+**Fix:** Corrected key name.
+**Verification:** Pod reached Running, env var populated correctly.
+**Lesson:** Same typo-driven failure class as Sep 3's selector mismatch — Kubernetes validates key references and fails fast at container-start rather than silently proceeding.
+
+## 10 Sept 2026 — ConfigMap update does not change running env vars
+**Observation:** Updated ConfigMap value; running Pod's env var stayed unchanged. Mounted file eventually updated (~60s), env var required a rollout restart to pick up the new value.
+**Lesson:** Env vars are injected once at container start. Mounted files sync periodically via kubelet but require the application itself to notice and reload — file-update ≠ app-reload. This distinction directly affects how config changes should be rolled out in real deployments.
+
+## 10 Sept 2026 — Wrong Secret key reference
+**Symptom:** Pod stuck in `CreateContainerConfigError` (same signature as the ConfigMap key failure).
+**Root Cause:** Typo in `secretKeyRef.key`.
+**Fix:** Corrected key name.
+**Lesson:** Secret and ConfigMap key-reference failures produce identical diagnostic signatures — the fix path (`describe pod` → read Events → check exact key name) is the same regardless of which object type is involved.

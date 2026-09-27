@@ -17,3 +17,39 @@ spec:
           image: nginx:1.25
           ports:
             - containerPort: 80
+
+          envFrom:
+            - configMapRef:
+                name: web-app-config
+
+          env:
+            - name: GREETING_EXPLICIT
+              valueFrom:
+                configMapKeyRef:
+                  name: web-app-config
+                  key: GREETING
+
+            - name: DEMO_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: web-app-secret
+                  key: DEMO_TOKEN
+
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+
+            - name: nginx-html
+              mountPath: /usr/share/nginx/html
+
+      volumes:
+        - name: config-volume
+          configMap:
+            name: web-app-config
+
+        - name: nginx-html
+          configMap:
+            name: web-app-config
+            items:
+              - key: INDEX_HTML
+                path: index.html
