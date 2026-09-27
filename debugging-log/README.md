@@ -261,3 +261,29 @@ Deployment adds controlled rollout, revision history, and rollback.
 **Scope note:** Readiness probes were used only as a minimal prerequisite for this failure diagnosis. Deep probe design, semantics, tuning, startup/liveness interactions, and advanced troubleshooting remain deferred to the dedicated Sept 11 probe day.
 
 **Lesson:** Identical top-level symptoms can have different root causes. Pod STATUS/READY state provides the first diagnostic layer, and `kubectl describe pod` Events provide evidence.
+
+## 9 Sept 2026 — Service selector mismatch (Exercise 1)
+**Symptom:** wget through Service timed out.
+**Observation:** `kubectl get endpoints` showed `<none>` despite Service having a valid ClusterIP.
+**Hypothesis:** Selector matches no Pods.
+**Evidence:** `kubectl get pods -l app=wrong-label` returned "No resources found"; `kubectl get pods -l app=web-app` showed 3 Pods existed but weren't selected.
+**Root Cause:** Service selector value didn't match Pod labels.
+**Fix:** Corrected selector to `app=web-app`.
+**Verification:** Endpoints populated with 3 entries.
+**Lesson:** Same selection-not-ownership mechanism as Sep 3/5's ReplicaSet work, now confirmed at Service level.
+
+## 9 Sept 2026 — Service targetPort mismatch (Exercise 2)
+**Symptom:** wget connection refused (fast, not a timeout — different signature from the selector-mismatch failure).
+**Observation:** Endpoints WERE populated (`<pod-ip>:8080`), ruling out a selection problem immediately.
+**Hypothesis:** Wrong port being forwarded to.
+**Evidence:** Container's actual containerPort was 80, not 8080.
+**Root Cause:** targetPort didn't match the application's listening port. Kubernetes does not validate this at apply time.
+**Fix:** Corrected targetPort to 80.
+**Verification:** wget succeeded.
+**Lesson:** Endpoints populated ≠ traffic will succeed — endpoint presence only proves selection worked, not that the port wiring is correct.
+
+## 9 Sept 2026 — DNS resolves, application still fails (Exercise 4)
+**Symptom:** nslookup succeeded; wget through the same name failed.
+**Observation:** Two completely separate outcomes for what looks like "the same Service.”
+**Diagnosis:** DNS resolution succeeded, meaning the DNS system successfully returned an address for the Service name. That did not prove that ready backends existed, that targetPort was correct, or that the application was healthy.
+**Lesson:** Never stop diagnosing at "DNS resolves" — DNS is only one step in the Service access chain.
