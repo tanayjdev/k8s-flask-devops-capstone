@@ -305,3 +305,28 @@ Deployment adds controlled rollout, revision history, and rollback.
 **Root Cause:** Typo in `secretKeyRef.key`.
 **Fix:** Corrected key name.
 **Lesson:** Secret and ConfigMap key-reference failures produce identical diagnostic signatures — the fix path (`describe pod` → read Events → check exact key name) is the same regardless of which object type is involved.
+
+## 11 Sept 2026 — Readiness failure affects Service endpoint readiness
+**Symptom:** After deleting one Pod's index.html, that Pod showed 0/1 READY while STATUS remained Running.
+**Observation:** `kubectl get endpoints web-app-svc` dropped from 3 to 2 entries after the Pod became NotReady.
+**Evidence:** The affected Pod remained present and Running, while its Service backend endpoint was no longer considered ready for normal Service traffic.
+**Diagnosis:** The readiness failure changed the Pod's Ready state. The Pod object itself remained Running and its container was NOT restarted.
+**Fix:** Restored index.html; the Pod became Ready again and the Service backend endpoint returned to the ready set.
+**Lesson:** Readiness controls whether a Pod-backed Service endpoint is considered ready for normal Service traffic. A readiness failure does not delete the Pod or restart its container.
+
+## 11 Sept 2026 — Liveness failure restarts container in place
+**Symptom:** RESTARTS count incremented on liveness-demo.
+**Observation:** `kubectl describe pod liveness-demo` showed repeated liveness probe failures followed by container restart events.
+**Evidence:** Pod NAME and UID were identical before and after the restart (recorded and compared explicitly).
+**Root Cause:** The liveness probe path deliberately pointed to a nonexistent path.
+**Fix:** Corrected the liveness probe path to `/`.
+**Verification:** The same Pod object remained in place while the container restarted; after correcting the probe, RESTARTS stopped increasing.
+**Lesson:** A liveness failure causes kubelet to restart the container in place. It does NOT create a replacement Pod object.
+
+## 11 Sept 2026 — startupProbe prevents premature liveness restarts during slow start
+**Symptom:** A container with a 20-second artificial startup delay and an aggressive liveness probe (without a startupProbe) began restarting before nginx finished starting.
+**Observation:** RESTARTS incremented within the first ~10 seconds, well before the 20-second sleep completed.
+**Root Cause:** The liveness probe began checking before the application had completed its legitimate startup period.
+**Fix:** Added a startupProbe with enough allowance (`failureThreshold: 10` × `periodSeconds: 3` = up to 30 seconds) to cover the intended startup window. Liveness checking was held off until the startup success.
+**Verification:** The same slow-start command completed startup without premature liveness restarts; RESTARTS remained 0.
+**Lesson:** startupProbe protects legitimately slow-starting containers from premature liveness failures. It allows the application time to initialize without weakening the later liveness failure detection window.

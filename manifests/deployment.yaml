@@ -17,6 +17,21 @@ spec:
           image: nginx:1.25
           ports:
             - containerPort: 80
+          
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 3
+            failureThreshold: 4
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            failureThreshold: 2
 
           envFrom:
             - configMapRef:
@@ -39,17 +54,7 @@ spec:
             - name: config-volume
               mountPath: /etc/config
 
-            - name: nginx-html
-              mountPath: /usr/share/nginx/html
-
       volumes:
         - name: config-volume
           configMap:
             name: web-app-config
-
-        - name: nginx-html
-          configMap:
-            name: web-app-config
-            items:
-              - key: INDEX_HTML
-                path: index.html
