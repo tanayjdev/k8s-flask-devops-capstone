@@ -343,3 +343,11 @@ Deployment adds controlled rollout, revision history, and rollback.
 **Symptom:** `kubectl run` failed immediately with "exceeded quota".
 **Root Cause:** Namespace pod count already at quota's hard limit (4).
 **Lesson:** ResourceQuota enforcement happens at the API server's admission stage — before scheduling, before the object is ever created. Different failure category entirely from a Pod that IS created but stays Pending (that's Sep 14's territory).
+
+## 14 Sept 2026 — Pod Pending due to stacked taints, no tolerations
+**Symptom:** `notoleration-pod` stuck Pending indefinitely.
+**Observation:** `kubectl describe pod` Events named BOTH nodes' taints explicitly as the exclusion reasons.
+**Root Cause:** No tolerations set; both control-plane (default kind taint) and worker (deliberately added) were excluded.
+**Fix:** Added a toleration matching the worker's specific taint.
+**Verification:** Pod landed on worker — control-plane remained excluded since its taint wasn't separately tolerated.
+**Lesson:** Toleration grants permission, not attraction — it only landed on worker because worker was the sole remaining viable node, not because tolerating pulled it there.
