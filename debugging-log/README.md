@@ -351,3 +351,16 @@ Deployment adds controlled rollout, revision history, and rollback.
 **Fix:** Added a toleration matching the worker's specific taint.
 **Verification:** Pod landed on worker — control-plane remained excluded since its taint wasn't separately tolerated.
 **Lesson:** Toleration grants permission, not attraction — it only landed on worker because worker was the sole remaining viable node, not because tolerating pulled it there.
+
+## 15 Sept 2026 — hostPath data inaccessible after node change
+**Symptom:** File written via hostPath on the worker node was missing after recreating the Pod pinned to the control-plane node.
+**Observation:** Identical absolute path, zero error on write to either node — the failure was silent, just an empty directory.
+**Root Cause:** hostPath is scoped to the NODE's physical filesystem, not to the Pod or the cluster as a whole.
+**Lesson:** This is exactly why hostPath is inappropriate for general persistence in any multi-node cluster — confirmed live using Sep 14's 2-node setup, not just asserted from documentation.
+
+## 15 Sept 2026 — PVC referencing nonexistent StorageClass stays permanently Pending
+**Symptom:** PVC stuck Pending, distinct from the earlier WaitForFirstConsumer-Pending (which resolved once a Pod appeared).
+**Observation:** `describe pvc` Events referenced the missing storage class name.
+**Root Cause:** `storageClassName` typo/nonexistent value — no provisioner is ever invoked for a class that doesn't exist.
+**Fix:** Removed the field to fall back to cluster default.
+**Lesson:** Two visually identical "Pending" states have different root causes — WaitForFirstConsumer-Pending resolves itself once consumed; a bad StorageClass reference never will, regardless of waiting.
