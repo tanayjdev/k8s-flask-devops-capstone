@@ -364,3 +364,24 @@ Deployment adds controlled rollout, revision history, and rollback.
 **Root Cause:** `storageClassName` typo/nonexistent value — no provisioner is ever invoked for a class that doesn't exist.
 **Fix:** Removed the field to fall back to cluster default.
 **Lesson:** Two visually identical "Pending" states have different root causes — WaitForFirstConsumer-Pending resolves itself once consumed; a bad StorageClass reference never will, regardless of waiting.
+
+## 16 Sept 2026 — Stale Pod IP failure (no DNS involved)
+8
+**Symptom:** wget to a previously-valid Pod IP timed out.
+**Observation:** kubectl get pod for that name returned NotFound.
+**Root Cause:** The Pod instance that owned that IP no longer exists.
+**Lesson:** A client that uses the Service is not dependent on a
+single Pod IP remaining valid. Service backend endpoint management
+tracks replacement backends, which is the network-layer reason the
+Service abstraction decouples clients from individual Pod identity.
+## 16 Sept 2026 — Service targetPort misconfiguration isolated via direct-IP test
+**Symptom:** wget through web-app-svc failed.
+**Observation:** Direct Pod-IP:80 connection SUCCEEDED — isolating
+the fault specifically to the Service's forwarding configuration,
+not general network connectivity.
+**Evidence:** Endpoints showed <pod-ip>:9999, application listens on 80.
+**Root Cause:** targetPort misconfigured in the Service spec.
+**Fix:** Corrected targetPort to 80.
+**Lesson:** Testing direct Pod-IP connectivity FIRST is the fastest
+way to separate "network path problem" from "Service config problem"
+— confirms kube-proxy is working correctly, points straight at config.
