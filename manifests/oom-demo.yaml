@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: oom-demo
+  namespace: resource-lab
+spec:
+  restartPolicy: Always
+  containers:
+    - name: stress
+      image: polinux/stress
+      resources:
+        requests:
+          memory: "50Mi"
+        limits:
+          memory: "300Mi"
+      command: ["stress"]
+      args: ["--vm", "1", "--vm-bytes", "250M", "--vm-hang", "1"]

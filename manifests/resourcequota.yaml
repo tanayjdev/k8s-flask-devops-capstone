@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: resource-lab-quota
+  namespace: resource-lab
+spec:
+  hard:
+    pods: "4"
+    requests.cpu: "500m"
+    requests.memory: 512Mi

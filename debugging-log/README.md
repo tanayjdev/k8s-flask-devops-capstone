@@ -330,3 +330,16 @@ Deployment adds controlled rollout, revision history, and rollback.
 **Fix:** Added a startupProbe with enough allowance (`failureThreshold: 10` × `periodSeconds: 3` = up to 30 seconds) to cover the intended startup window. Liveness checking was held off until the startup success.
 **Verification:** The same slow-start command completed startup without premature liveness restarts; RESTARTS remained 0.
 **Lesson:** startupProbe protects legitimately slow-starting containers from premature liveness failures. It allows the application time to initialize without weakening the later liveness failure detection window.
+
+## 12 Sept 2026 — OOMKilled vs CPU throttled, same tool, different enforcement
+**Symptom (memory):** RESTARTS incremented on oom-demo; same NAME+UID before/after (Sep 4 technique reused).
+**Evidence:** `kubectl describe` showed Reason: OOMKilled, Exit Code: 137 (SIGKILL).
+**Root Cause:** `stress --vm-bytes 250M` exceeded a 100Mi memory limit.
+**Fix:** Raised memory limit to 300Mi.
+**Contrast (CPU):** Identical stress tool, `--cpu 1` against a 100m CPU limit — RESTARTS stayed 0, Pod never killed, only slowed.
+**Lesson:** Memory is incompressible (OOM-killed on excess); CPU is compressible (throttled, stays alive). Same violation pattern, fundamentally different enforcement mechanism.
+
+## 12 Sept 2026 — ResourceQuota admission-time rejection
+**Symptom:** `kubectl run` failed immediately with "exceeded quota".
+**Root Cause:** Namespace pod count already at quota's hard limit (4).
+**Lesson:** ResourceQuota enforcement happens at the API server's admission stage — before scheduling, before the object is ever created. Different failure category entirely from a Pod that IS created but stays Pending (that's Sep 14's territory).
