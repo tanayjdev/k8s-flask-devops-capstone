@@ -481,3 +481,19 @@ way to separate "network path problem" from "Service config problem"
 **Prediction:** Threshold 1 reacts faster than Threshold 2.
 **Observation:** T2-T1 delta was smaller on Variant B.
 **Interpretation:** A lower threshold removes the buffer against jitter/flakes, dropping endpoints faster.
+
+## 24 Sept 2026 — Unannounced incident
+**Symptom:** Application was reported as degraded, but the initial baseline check via `incident-client` returned `{"database":"connected","status":"healthy"}`.
+**Prediction:** Expected a hidden fault in routing, config, or dependencies, pending verification.
+**Investigation commands:** `kubectl get pods -o wide`, `kubectl get endpointslices`, `kubectl describe configmap flask-app-config`.
+**Actual evidence:** All Pods (Flask and Postgres) were `1/1 Running`. EndpointSlices were fully populated with the correct Pod IPs. The ConfigMap contained the correct `DB_NAME`, `DB_HOST`, and `DB_USER`. 
+**Root Cause:** No fault found. The cluster was already in a perfectly healthy state due to the complete and successful restoration at the end of Capstone Day 23.
+**Fix:** No fix required.
+**Verification:** `/health` endpoint successfully and consistently returned connected status.
+
+## 24 Sept 2026 — True from-scratch rebuild
+**Reset boundary:** Workloads, Services, PVCs, ConfigMaps, Secrets, SAs deleted. Confirmed by `No resources found in default namespace`.
+**Checkpoint results:** Postgres Secret recreated -> Postgres Deployment & PVC created and rolled out -> Flask ConfigMap, Secret, SA created -> Flask Deployment & Service created and rolled out successfully.
+**Actual /health result:** `{"database":"connected","status":"healthy"}`
+**RBAC can-i result:** `no` (Confirmed `flask-app-sa` has least-privilege / no API access).
+**Notes:** Rebuilt successfully from declarative manifests. `automountServiceAccountToken` verified as `false` on the Flask deployment.
