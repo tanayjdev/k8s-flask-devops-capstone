@@ -413,3 +413,29 @@ way to separate "network path problem" from "Service config problem"
 **Evidence:** After the next 60-second schedule window, only one Job existed while the first Job was still active.
 **Diagnosis:** The second trigger overlapped the active Job and was skipped because `concurrencyPolicy: Forbid` was configured.
 **Lesson:** `Forbid` skips overlapping triggers; it does not queue the skipped trigger for later execution.
+
+## 21 Sept 2026 — Capstone ConfigMap key failure
+**Symptom:** CreateContainerConfigError / application Pod unable to start.
+**Observation:** Pod status showed CreateContainerConfigError.
+**Hypothesis:** A referenced ConfigMap key may be missing.
+**Evidence:** `kubectl describe pod` → Events → couldn't find key DB_HOSTT in ConfigMap flask-app-config.
+**Root Cause:** The Deployment referenced `DB_HOSTT`, while the ConfigMap contains `DB_HOST`.
+**Fix:** Removed the incorrect individual key reference.
+**Verification:** `kubectl rollout status deployment/flask-app` confirmed the recovered state.
+**Lesson:** CreateContainerConfigError should be routed through the configuration branch of the troubleshooting toolkit and diagnosed from Pod Events, not guessed from the Deployment YAML alone.
+
+## 21 Sept 2026 — Capstone Service selector mismatch
+**Symptom:** Service had no usable backend endpoints.
+**Observation:** `kubectl get endpoints flask-app-svc` returned `<none>` after the Service selector was intentionally changed.
+**Hypothesis:** The Service selector may not match the Flask Pod labels.
+**Evidence:** Service selector: `app=wrong-label`. Pod label: `app=flask-app`.
+**Root Cause:** The Service selector did not match the application's Pod labels.
+**Fix:** Restored the Service selector to `app=flask-app`.
+**Verification:** Endpoints repopulated and the Service request was re-tested.
+**Lesson:** When a Service is unreachable, inspect backend endpoints before changing DNS or application configuration.
+
+### 21 Sept 2026 — Capstone Day 1 `/health`
+**Expected state:** PostgreSQL is intentionally not deployed until Sep 22, so the DB-dependent health state will fail.
+**Actual result:** Health check returned a 500 error / connection refused.
+**Interpretation:** Flask is running, but the database connection is failing because `postgres-svc` does not exist.
+**Conclusion:** The absence of PostgreSQL is an expected incomplete dependency for Sep 21, not automatically a Kubernetes deployment failure.
