@@ -1,4 +1,4 @@
-# flask-devops-app — Kubernetes Deployment
+# flask-devops-app - Kubernetes Deployment
 
 ## Project Overview
 
