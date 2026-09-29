@@ -449,3 +449,35 @@ way to separate "network path problem" from "Service config problem"
 **Fix:** Restored `DB_HOST: postgres-svc`, reapplied the ConfigMap, and restarted the Flask Deployment.
 **Verification:** Rollout succeeded, Endpoints repopulated, and `/health` returned connected DB status.
 **Lesson:** Readiness should protect Service traffic when a real application dependency fails, while liveness should remain focused on process health.
+
+## 23 Sept 2026 — Failure Engineering
+
+### Failure 1 — ConfigMap Value
+**Prediction:** App connection drops, Postgres stays healthy.
+**Actual Observation:** Pods run, but app logs show DB connection error.
+**Fix:** Restored `DB_NAME: "flaskapp"`.
+
+### Failure 2 — Service Routing
+**Prediction:** Service endpoints empty, Flask Pods stay healthy.
+**Actual Observation:** Flask stays Ready, but EndpointSlices drop to 0.
+**Fix:** Restored `selector: app=flask-app`.
+
+### Failure 3 — Postgres Dependency
+**Prediction:** Flask readiness drops, no container restarts.
+**Actual Observation:** Flask drops to 0/1 READY; RESTARTS remain 0 because Liveness stays healthy.
+**Fix:** Scaled Postgres back to 1.
+
+### Failure 4 — Authentication
+**Prediction:** Looks like a timeout, but logs show auth rejection.
+**Actual Observation:** Endpoints exist, but Flask logs complain about auth DB access.
+**Fix:** Restored correct password Secret.
+
+### Failure 5 — Readiness Configuration
+**Prediction:** Bad path leaves Pod NotReady forever.
+**Actual Observation:** Pods hit Running but never become Ready. 
+**Fix:** Restored path to `/health`.
+
+### Failure 6 — Probe Sensitivity
+**Prediction:** Threshold 1 reacts faster than Threshold 2.
+**Observation:** T2-T1 delta was smaller on Variant B.
+**Interpretation:** A lower threshold removes the buffer against jitter/flakes, dropping endpoints faster.
