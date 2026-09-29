@@ -385,3 +385,31 @@ not general network connectivity.
 **Lesson:** Testing direct Pod-IP connectivity FIRST is the fastest
 way to separate "network path problem" from "Service config problem"
 — confirms kube-proxy is working correctly, points straight at config.
+
+## 17 Sept 2026 - Forbidden delete correctly denied by least-privilege Role
+**Symptom:** `kubectl delete pod --as=<serviceaccount>` returned Forbidden.
+**Observation:** `describe role` confirmed verbs list contained only get/list/watch — delete genuinely absent by design.
+**Evidence:** `kubectl auth can-i delete pods` returned "no" both before and after investigation — deliberate, unchanged posture.
+**Lesson:** A Forbidden error is not automatically a bug to fix by adding permission — the correct first step is verifying whether the denial is intentional least-privilege behavior, which it was here.
+
+## 17 Sept 2026 - Modern ServiceAccount token behavior
+**Observation:** `kubectl get secrets -n rbac-lab` showed no automatically-created token Secret for app-reader, despite a Pod actively using that ServiceAccount and having a working token mounted via projected volume.
+**Lesson:** Post-1.24 Kubernetes does not auto-create persistent token Secrets — tokens are short-lived and projected at Pod start. This directly corrects the outdated pre-1.24 assumption.
+## 18 Sept 2026 — ClusterRoleBinding removal proven independent of RoleBinding grant
+**Symptom:** After removing the ClusterRoleBinding, cross-namespace access correctly reverted to denied.
+**Observation:** The same ServiceAccount still retained access in `rbac-lab`.
+**Evidence:** `kubectl auth can-i get pods` returned `no` in `default` but `yes` in `rbac-lab` after the ClusterRoleBinding was removed.
+**Diagnosis:** The cluster-wide grant and namespace-scoped grant came from two separate bindings.
+**Lesson:** One ClusterRole can back multiple independent bindings simultaneously; removing one binding does not modify the others.
+
+## 18 Sept 2026 — Job retry mechanism differs by restartPolicy
+**Observation:** The same failing command with `restartPolicy: Never` produced multiple distinct Pod objects with different names/UIDs. With `restartPolicy: OnFailure`, the Job used one Pod identity while its container restart count increased.
+**Evidence:** `kubectl get pods` using NAME, UID and RESTARTS columns demonstrated the difference.
+**Diagnosis:** Job retry behavior depends on restartPolicy.
+**Lesson:** "Job retry" is not one mechanism: `Never` allows the Job controller to create replacement Pod objects, while `OnFailure` allows kubelet-level in-place container restarts within the same Pod.
+
+## 18 Sept 2026 — concurrencyPolicy: Forbid skips overlapping schedule triggers
+**Observation:** The CronJob ran a 90-second Job on a 60-second schedule.
+**Evidence:** After the next 60-second schedule window, only one Job existed while the first Job was still active.
+**Diagnosis:** The second trigger overlapped the active Job and was skipped because `concurrencyPolicy: Forbid` was configured.
+**Lesson:** `Forbid` skips overlapping triggers; it does not queue the skipped trigger for later execution.
