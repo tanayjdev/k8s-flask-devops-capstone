@@ -12,6 +12,8 @@ spec:
       labels:
         app: flask-app
     spec:
+      serviceAccountName: flask-app-sa
+      automountServiceAccountToken: false
       containers:
         - name: flask
           image: tanayjain29/flask-devops-app:sha-a8f36ea
@@ -31,3 +33,28 @@ spec:
                 secretKeyRef:
                   name: flask-app-secret
                   key: DB_PASSWORD
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "150m"
+              memory: "128Mi"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            periodSeconds: 3
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            periodSeconds: 10
+            failureThreshold: 3

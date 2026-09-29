@@ -439,3 +439,13 @@ way to separate "network path problem" from "Service config problem"
 **Actual result:** Health check returned a 500 error / connection refused.
 **Interpretation:** Flask is running, but the database connection is failing because `postgres-svc` does not exist.
 **Conclusion:** The absence of PostgreSQL is an expected incomplete dependency for Sep 21, not automatically a Kubernetes deployment failure.
+
+## 22 Sept 2026 — Capstone DB_HOST typo severed app→Postgres connectivity
+**Symptom:** Flask Pods were Running but 0/1 READY.
+**Observation:** `kubectl get pods` showed 0/1 READY. `kubectl get endpoints flask-app-svc` showed no usable backends.
+**Hypothesis:** The Flask application may be unable to resolve/connect to its Postgres Service.
+**Evidence:** Readiness probe failed on `/health`. Flask logs indicated database connection timeout/refusal.
+**Root Cause:** The ConfigMap contained `DB_HOST: postgres-svc-typo` instead of the actual PostgreSQL Service name `postgres-svc`.
+**Fix:** Restored `DB_HOST: postgres-svc`, reapplied the ConfigMap, and restarted the Flask Deployment.
+**Verification:** Rollout succeeded, Endpoints repopulated, and `/health` returned connected DB status.
+**Lesson:** Readiness should protect Service traffic when a real application dependency fails, while liveness should remain focused on process health.
