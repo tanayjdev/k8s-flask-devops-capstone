@@ -2,7 +2,18 @@
 
 ## Project Overview
 
+![Kubernetes Flask + PostgreSQL Architecture](docs/k8s-flask-postgres-architecture.png)
 A Kubernetes-deployed Flask application integrated with PostgreSQL, using Kubernetes Deployments, Services, ConfigMap/Secret configuration, health probes, a PersistentVolumeClaim, and a dedicated ServiceAccount. The project is a hands-on Kubernetes/DevOps learning system focused on deployment, dependency-aware health, failure engineering, diagnosis, recovery, and reproducibility.
+
+## Quick Navigation
+
+- [Architecture](#architecture)
+- [Failure Engineering](#failure-engineering)
+- [Debugging Method](#debugging-method)
+- [Reproduction](#reproduction)
+- [Security Notes](#security-notes)
+- [Known Limitations](#known-limitations)
+- [Future Work](#future-work)
 
 ## Project Purpose
 
@@ -125,6 +136,7 @@ Evidence-based diagnostic methodology is documented in [`docs/kubernetes-trouble
 ## Reproduction
 
 For instructions on independently rebuilding and verifying this stack from scratch, see [`docs/reproduction.md`](docs/reproduction.md).
+**Verified reproduction:** Rebuilt in isolated namespace `sep28-repro` with PostgreSQL and Flask rollouts, EndpointSlice verification, and `/health` returning `{"database":"connected","status":"healthy"}`.
 
 ## Verification
 
